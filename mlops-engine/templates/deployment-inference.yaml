@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mlops-engine.fullname" . }}-baseline
+  labels:
+    app.kubernetes.io/name: {{ include "mlops-engine.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: baseline
+spec:
+  replicas: {{ .Values.replicaCount.baseline }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "mlops-engine.name" . }}
+      app.kubernetes.io/component: baseline
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "mlops-engine.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: baseline
+    spec:
+      securityContext:
+        runAsUser: {{ .Values.securityContext.runAsUser }}
+        runAsNonRoot: {{ .Values.securityContext.runAsNonRoot }}
+      containers:
+        - name: baseline
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.baseline.port }}
+              name: http
+          env:
+            - name: REDIS_URL
+              value: "{{ .Values.env.redisUrl }}"
+            - name: RMQ_URL
+              value: "{{ .Values.env.rabbitmqUrl }}"
+            - name: RESERVOIR_CAPACITY
+              value: "10000"
+          resources:
+            requests:
+              cpu: "{{ .Values.resources.baseline.requests.cpu }}"
+              memory: "{{ .Values.resources.baseline.requests.memory }}"
+            limits:
+              cpu: "{{ .Values.resources.baseline.limits.cpu }}"
+              memory: "{{ .Values.resources.baseline.limits.memory }}"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.service.baseline.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.service.baseline.port }}
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsUser: {{ .Values.securityContext.runAsUser }}
+            readOnlyRootFilesystem: {{ .Values.securityContext.readOnlyRootFilesystem | quote }}

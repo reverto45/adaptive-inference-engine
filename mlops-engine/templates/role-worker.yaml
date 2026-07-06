@@ -1,0 +1,28 @@
+{{- if .Values.rbac.create }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "mlops-engine.fullname" . }}-worker-role
+  labels:
+    app.kubernetes.io/name: {{ include "mlops-engine.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+rules:
+  - apiGroups: [""]
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+  - apiGroups: [""]
+    resources:
+      - pods
+      - services
+    verbs:
+      - get
+      - list
+      - watch
+{{- end }}

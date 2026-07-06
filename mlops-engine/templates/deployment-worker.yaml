@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mlops-engine.fullname" . }}-worker
+  labels:
+    app.kubernetes.io/name: {{ include "mlops-engine.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: worker
+spec:
+  replicas: {{ .Values.replicaCount.worker }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "mlops-engine.name" . }}
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "mlops-engine.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: worker
+    spec:
+      serviceAccountName: {{ default (include "mlops-engine.fullname" . ) .Values.rbac.worker.serviceAccountName | trunc 63 }}
+      securityContext:
+        runAsUser: {{ .Values.securityContext.runAsUser }}
+        runAsNonRoot: {{ .Values.securityContext.runAsNonRoot }}
+      containers:
+        - name: worker
+          image: "{{ .Values.workerImage.repository }}:{{ .Values.workerImage.tag }}"
+          imagePullPolicy: {{ .Values.workerImage.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.worker.port }}
+              name: webhook
+            - containerPort: {{ .Values.service.worker.metricsPort }}
+              name: metrics
+          env:
+            - name: RMQ_URL
+              value: "{{ .Values.env.rabbitmqUrl }}"
+            - name: REDIS_URL
+              value: "{{ .Values.env.redisUrl }}"
+            - name: RESERVOIR_CAPACITY
+              value: "10000"
+            - name: CHECK_INTERVAL
+              value: "{{ .Values.prometheus.scrapeInterval }}"
+            - name: ENVOY_CONF_DIR
+              value: "{{ .Values.env.envoyConfigPath }}"
+          resources:
+            requests:
+              cpu: "{{ .Values.resources.worker.requests.cpu }}"
+              memory: "{{ .Values.resources.worker.requests.memory }}"
+            limits:
+              cpu: "{{ .Values.resources.worker.limits.cpu }}"
+              memory: "{{ .Values.resources.worker.limits.memory }}"
+          volumeMounts:
+            - name: envoy-config
+              mountPath: "{{ .Values.env.envoyConfigPath }}"
+              readOnly: false
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.service.worker.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+      volumes:
+        - name: envoy-config
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-envoy-pvc

@@ -1,0 +1,73 @@
+{{- /*
+PVC for Envoy shared config: dynamic depending on values.persistence.storage.type
+Supported: hostPath (creates PV+PVC using hostPath), efs, gcpFilestore, azureFile
+*/ -}}
+{{- $storageType := .Values.persistence.storage.type | default "hostPath" -}}
+{{- if eq $storageType "hostPath" -}}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ .Release.Name }}-envoy-pv
+  labels:
+    app.kubernetes.io/name: {{ include "mlops-engine.name" . }}
+spec:
+  capacity:
+    storage: {{ .Values.persistence.storage.size }}
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: "{{ .Values.persistence.hostPath.path }}"
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-envoy-pvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: {{ .Values.persistence.storage.size }}
+  volumeName: {{ .Release.Name }}-envoy-pv
+{{- else if eq $storageType "efs" -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-envoy-pvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: {{ .Values.persistence.efs.storageClassName | quote }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.storage.size }}
+{{- else if eq $storageType "gcpFilestore" -}}
+# For GCP Filestore, assume StorageClass & provisioner installed; reference the storage class
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-envoy-pvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: {{ .Values.persistence.gcpFilestore.storageClassName | quote }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.storage.size }}
+{{- else if eq $storageType "azureFile" -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-envoy-pvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: {{ .Values.persistence.azureFile.storageClassName | quote }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.storage.size }}
+{{- else -}}
+{{ fail (printf "Unsupported persistence.storage.type: %s" $storageType) }}
+{{- end -}}

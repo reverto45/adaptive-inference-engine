@@ -1,0 +1,166 @@
+{
+  "templating": {
+    "list": [
+      {
+        "name": "feature",
+        "type": "query",
+        "label": "Feature",
+        "datasource": "${DS_PROMETHEUS}",
+        "refresh": 1,
+        "query": "label_values(mlops_population_stability_index, feature_name)",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "snapshot",
+        "type": "query",
+        "label": "Snapshot",
+        "datasource": "${DS_PROMETHEUS}",
+        "refresh": 1,
+        "query": "label_values(mlops_adversarial_validation_auc, snapshot_id)",
+        "multi": false,
+        "includeAll": false
+      }
+    ]
+  },
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": "${DS_PROMETHEUS}",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 2,
+      "title": "Feature Population Stability Index (PSI)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "mlops_population_stability_index{feature_name=~\"$feature\"}",
+          "interval": "",
+          "legendFormat": "{{feature_name}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "tooltip": {
+          "mode": "single"
+        },
+        "orientation": "auto",
+        "colorMode": "value",
+        "fieldOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "orange",
+                  "value": 0.10
+                },
+                {
+                  "color": "red",
+                  "value": 0.25
+                }
+              ]
+            },
+            "unit": "short"
+          },
+          "overrides": []
+        }
+      }
+    },
+    {
+      "datasource": "${DS_PROMETHEUS}",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 4,
+      "title": "Adversarial Validation AUC-ROC Trend",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "mlops_adversarial_validation_auc{snapshot_id=~\"$snapshot\"}",
+          "interval": "",
+          "legendFormat": "{{snapshot_id}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "tooltip": {
+          "mode": "single"
+        },
+        "fieldOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "orange",
+                  "value": 0.65
+                },
+                {
+                  "color": "red",
+                  "value": 0.75
+                }
+              ]
+            },
+            "unit": "short"
+          },
+          "overrides": []
+        }
+      }
+    }
+  ],
+  "schemaVersion": 36,
+  "style": "dark",
+  "tags": [
+    "mlops",
+    "psi",
+    "adversarial"
+  ],
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "MLOps PSI & Adversarial AUC Dashboard",
+  "uid": null,
+  "version": 1
+}

@@ -1,0 +1,87 @@
+replicaCount:
+  baseline: 3
+  worker: 2
+
+image:
+  repository: your-registry/mlops-engine
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+workerImage:
+  repository: your-registry/mlops-worker
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+resources:
+  baseline:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "2Gi"
+  worker:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2000m"
+      memory: "4Gi"
+
+env:
+  redisUrl: "redis://redis-production.internal:6379/0"
+  rabbitmqUrl: "amqp://rabbitmq-production.internal:5672/"
+  envoyConfigPath: "/etc/envoy"
+
+securityContext:
+  runAsUser: 10001
+  runAsNonRoot: true
+  readOnlyRootFilesystem: false
+
+service:
+  type: ClusterIP
+  baseline:
+    port: 8000
+  worker:
+    port: 8001
+    metricsPort: 9090
+
+envoy:
+  enabled: true
+  serviceName: envoy-gateway
+  port: 8080
+
+persistence:
+  # Select storage type for envoy shared config. Supported values: hostPath, efs, gcpFilestore, azureFile
+  storage:
+    type: "efs"  # hostPath | efs | gcpFilestore | azureFile
+    size: "1Gi"
+  hostPath:
+    path: "/var/lib/mlops/envoy-config"
+  efs:
+    fileSystemId: ""           # e.g., fs-0123456789abcdef0 (EFS)
+    storageClassName: "efs-sc" # optional pre-created StorageClass name for EFS CSI
+  gcpFilestore:
+    instance: ""              # e.g., projects/PROJECT/locations/REGION/instances/INSTANCE
+    storageClassName: "gcp-filestore-sc"
+  azureFile:
+    storageAccountName: ""     # e.g., yourstorageacct
+    shareName: "envoy-share"
+    storageClassName: "azurefiles-sc"
+
+# RBAC & service account for worker (to patch ConfigMaps if desired)
+rbac:
+  create: true
+  worker:
+    serviceAccountName: ""     # if left blank the chart will create one
+    create: true
+
+prometheus:
+  enabled: true
+  scrapeInterval: 15s
+  scrape:
+    worker: true
+
+affinity: {}
+tolerations: []
+nodeSelector: {}
