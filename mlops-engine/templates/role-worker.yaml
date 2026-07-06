@@ -10,6 +10,8 @@ rules:
   - apiGroups: [""]
     resources:
       - configmaps
+    resourceNames:
+      - {{ .Release.Name }}-envoy-config
     verbs:
       - get
       - list

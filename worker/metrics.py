@@ -14,18 +14,41 @@ Exports:
 Usage example:
     from worker.metrics import start_metrics_exporter, increment_telemetry, set_psi, set_auc, set_ewc_penalty
     start_metrics_exporter(9090)
-    increment_telemetry("ingest", "accepted")
-    set_psi("feature_0", 0.12)
-    set_auc("snapshot-2026-07-01", 0.71)
-    set_ewc_penalty("epoch_1", 3.1415)
+    increment_telemetry(stream_source="ingest", status="accepted")
+    set_psi(feature_name="feature_0", value=0.12)
+    set_auc(snapshot_id="snapshot-2026-07-01", value=0.71)
+    set_ewc_penalty(active_epoch="epoch_1", value=3.1415)
 """
 from __future__ import annotations
 
-import threading
+import json
+import logging
 import time
 from typing import Optional
 
 from prometheus_client import Counter, Gauge, start_http_server
+
+class JsonFormatter(logging.Formatter):
+    """
+    Formatter that outputs JSON strings.
+    """
+    def format(self, record):
+        log_record = {
+            "time": self.formatTime(record, self.datefmt),
+            "level": record.levelname,
+            "message": record.getMessage(),
+            "name": record.name
+        }
+        if record.exc_info:
+            log_record["exception"] = self.formatException(record.exc_info)
+        return json.dumps(log_record)
+
+# Configure structured logging
+handler = logging.StreamHandler()
+handler.setFormatter(JsonFormatter())
+logger = logging.getLogger(__name__)
+logger.addHandler(handler)
+logger.setLevel(logging.INFO)
 
 # Counter for telemetry records processed/dropped
 mlops_telemetry_records_total = Counter(
@@ -62,12 +85,13 @@ def start_metrics_exporter(port: int = 9090) -> None:
 
     Runs start_http_server which creates a background thread; this function is idempotent.
     """
-    # start_http_server already spins in background; call it from here for convenience
     try:
         start_http_server(port)
-    except Exception:
-        # best-effort: the start_http_server may have already been called or port in use
-        pass
+        logger.info(f"Metrics exporter started on port {port}")
+    except OSError as e:
+        logger.error(f"Failed to start metrics exporter on port {port}: {e}")
+    except Exception as e:
+        logger.error(f"Unexpected error starting metrics exporter: {e}")
 
 
 # Helper functions to update metrics
@@ -79,7 +103,10 @@ def increment_telemetry(stream_source: str = "unknown", status: str = "accepted"
     status examples: accepted, dropped, failed, queued
     stream_source examples: ingress, reservoir, replay
     """
-    mlops_telemetry_records_total.labels(stream_source, status).inc(amount)
+    try:
+        mlops_telemetry_records_total.labels(stream_source=stream_source, status=status).inc(amount)
+    except Exception as e:
+        logger.error(f"Error incrementing telemetry metrics: {e}")
 
 
 def set_psi(feature_name: str, value: float) -> None:
@@ -87,10 +114,11 @@ def set_psi(feature_name: str, value: float) -> None:
     Set the PSI gauge for a feature.
     """
     try:
-        mlops_population_stability_index.labels(feature_name).set(float(value))
-    except Exception:
-        # ignore metric failures
-        pass
+        mlops_population_stability_index.labels(feature_name=feature_name).set(float(value))
+    except (ValueError, TypeError) as e:
+        logger.error(f"Invalid value for PSI metric: {e}")
+    except Exception as e:
+        logger.error(f"Error setting PSI metric: {e}")
 
 
 def set_auc(snapshot_id: str, value: float) -> None:
@@ -98,9 +126,11 @@ def set_auc(snapshot_id: str, value: float) -> None:
     Set adversarial validation AUC for a snapshot.
     """
     try:
-        mlops_adversarial_validation_auc.labels(snapshot_id).set(float(value))
-    except Exception:
-        pass
+        mlops_adversarial_validation_auc.labels(snapshot_id=snapshot_id).set(float(value))
+    except (ValueError, TypeError) as e:
+        logger.error(f"Invalid value for AUC metric: {e}")
+    except Exception as e:
+        logger.error(f"Error setting AUC metric: {e}")
 
 
 def set_ewc_penalty(active_epoch: str, value: float) -> None:
@@ -108,6 +138,8 @@ def set_ewc_penalty(active_epoch: str, value: float) -> None:
     Record aggregated EWC penalty magnitude for an epoch (or step).
     """
     try:
-        mlops_ewc_loss_penalty_magnitude.labels(active_epoch).set(float(value))
-    except Exception:
-        pass
+        mlops_ewc_loss_penalty_magnitude.labels(active_epoch=active_epoch).set(float(value))
+    except (ValueError, TypeError) as e:
+        logger.error(f"Invalid value for EWC penalty metric: {e}")
+    except Exception as e:
+        logger.error(f"Error setting EWC penalty metric: {e}")

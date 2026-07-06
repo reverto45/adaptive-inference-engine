@@ -29,14 +29,16 @@ resources:
       memory: "4Gi"
 
 env:
+  envoyConfigPath: "/etc/envoy"
+
+secrets:
   redisUrl: "redis://redis-production.internal:6379/0"
   rabbitmqUrl: "amqp://rabbitmq-production.internal:5672/"
-  envoyConfigPath: "/etc/envoy"
 
 securityContext:
   runAsUser: 10001
   runAsNonRoot: true
-  readOnlyRootFilesystem: false
+  readOnlyRootFilesystem: true
 
 service:
   type: ClusterIP
@@ -50,14 +52,13 @@ envoy:
   enabled: true
   serviceName: envoy-gateway
   port: 8080
+  shadowTrafficNumerator: 10
 
 persistence:
-  # Select storage type for envoy shared config. Supported values: hostPath, efs, gcpFilestore, azureFile
+  # Select storage type for envoy shared config. Supported values: efs, gcpFilestore, azureFile
   storage:
-    type: "efs"  # hostPath | efs | gcpFilestore | azureFile
+    type: "efs"  # efs | gcpFilestore | azureFile
     size: "1Gi"
-  hostPath:
-    path: "/var/lib/mlops/envoy-config"
   efs:
     fileSystemId: ""           # e.g., fs-0123456789abcdef0 (EFS)
     storageClassName: "efs-sc" # optional pre-created StorageClass name for EFS CSI
