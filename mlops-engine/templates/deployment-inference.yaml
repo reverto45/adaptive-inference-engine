@@ -36,9 +36,15 @@ spec:
               name: http
           env:
             - name: REDIS_URL
-              value: "{{ .Values.env.redisUrl }}"
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "mlops-engine.fullname" . }}-secrets
+                  key: redis-url
             - name: RMQ_URL
-              value: "{{ .Values.env.rabbitmqUrl }}"
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "mlops-engine.fullname" . }}-secrets
+                  key: rabbitmq-url
             - name: RESERVOIR_CAPACITY
               value: "10000"
           resources:
@@ -67,4 +73,10 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
             runAsUser: {{ .Values.securityContext.runAsUser }}
-            readOnlyRootFilesystem: {{ .Values.securityContext.readOnlyRootFilesystem | quote }}
+            readOnlyRootFilesystem: {{ .Values.securityContext.readOnlyRootFilesystem }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

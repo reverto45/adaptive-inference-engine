@@ -34,9 +34,15 @@ spec:
               name: metrics
           env:
             - name: RMQ_URL
-              value: "{{ .Values.env.rabbitmqUrl }}"
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "mlops-engine.fullname" . }}-secrets
+                  key: rabbitmq-url
             - name: REDIS_URL
-              value: "{{ .Values.env.redisUrl }}"
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "mlops-engine.fullname" . }}-secrets
+                  key: redis-url
             - name: RESERVOIR_CAPACITY
               value: "10000"
             - name: CHECK_INTERVAL
@@ -50,10 +56,16 @@ spec:
             limits:
               cpu: "{{ .Values.resources.worker.limits.cpu }}"
               memory: "{{ .Values.resources.worker.limits.memory }}"
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsUser: {{ .Values.securityContext.runAsUser }}
+            readOnlyRootFilesystem: {{ .Values.securityContext.readOnlyRootFilesystem }}
           volumeMounts:
             - name: envoy-config
               mountPath: "{{ .Values.env.envoyConfigPath }}"
               readOnly: false
+            - name: tmp
+              mountPath: /tmp
           livenessProbe:
             httpGet:
               path: /health
@@ -65,3 +77,5 @@ spec:
         - name: envoy-config
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-envoy-pvc
+        - name: tmp
+          emptyDir: {}
