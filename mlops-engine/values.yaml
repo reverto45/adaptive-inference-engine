@@ -1,6 +1,7 @@
 replicaCount:
   baseline: 3
   worker: 2
+  candidate: 1
 
 image:
   repository: your-registry/mlops-engine

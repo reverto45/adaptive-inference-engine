@@ -1,0 +1,5 @@
+shared-models/
+__pycache__/
+*.pyc
+*.tmp
+*.log
