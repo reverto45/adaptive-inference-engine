@@ -46,3 +46,7 @@ graph TD
    ```bash
    helm upgrade mlops-engine ./mlops-engine --set envoy.shadowTrafficNumerator=20
    ```
+
+## License
+
+This project is licensed under the terms of the GNU Affero General Public License version 3 (AGPLv3). See the [LICENSE](LICENSE) file for the full text.
