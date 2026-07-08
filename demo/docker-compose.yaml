@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  inference:
+    image: python:3.12-slim
+    command: python3 -m http.server 8000
+    ports:
+      - "8000:8000"
+
+  worker:
+    image: python:3.12-slim
+    volumes:
+      - ../worker:/app/worker
+      - .:/app/demo
+    working_dir: /app
+    command: python3 -m worker.metrics
+    environment:
+      - PYTHONPATH=/app
+
+  envoy:
+    image: envoyproxy/envoy:v1.30-latest
+    ports:
+      - "8080:8080"
+      - "9901:9901"
+
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "9090:9090"
