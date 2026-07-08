@@ -316,8 +316,8 @@ def main():
                 logger.info(f"Adversarial Validation AUC-ROC: {auc:.4f}")
                 
                 # Check for drift triggers
-                # Standard threshold: PSI > 0.2 or AUC > 0.7
-                if max_psi > 0.25 or auc > 0.72:
+                # Standard threshold: PSI >= 0.25 or AUC >= 0.72
+                if max_psi >= 0.25 or auc >= 0.72:
                     logger.warning("DATA DRIFT DETECTED! Triggering adaptive mitigation pipeline.")
                     drift_detected = True
                     
