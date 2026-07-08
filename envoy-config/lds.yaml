@@ -1,0 +1,33 @@
+resources:
+- "@type": type.googleapis.com/envoy.config.listener.v3.Listener
+  name: main_listener
+  address:
+    socket_address:
+      address: 0.0.0.0
+      port_value: 8080
+  filter_chains:
+    - filters:
+        - name: envoy.filters.network.http_connection_manager
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+            stat_prefix: ingress_http
+            route_config:
+              name: local_route
+              virtual_hosts:
+                - name: default_api
+                  domains: ["*"]
+                  routes:
+                    - match:
+                        prefix: "/predict"
+                      route:
+                        cluster: mlops-engine-baseline-service
+                        request_mirror_policies:
+                          - cluster: mlops-engine-shadow-service
+                            runtime_fraction:
+                              default_value:
+                                numerator: 100 # Mirror 100% of traffic for simulation testing
+                                denominator: HUNDRED
+            http_filters:
+              - name: envoy.filters.http.router
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router

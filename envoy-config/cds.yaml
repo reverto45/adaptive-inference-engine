@@ -1,0 +1,29 @@
+resources:
+- "@type": type.googleapis.com/envoy.config.cluster.v3.Cluster
+  name: mlops-engine-baseline-service
+  connect_timeout: 0.25s
+  type: STRICT_DNS
+  lb_policy: ROUND_ROBIN
+  load_assignment:
+    cluster_name: mlops-engine-baseline-service
+    endpoints:
+      - lb_endpoints:
+          - endpoint:
+              address:
+                socket_address:
+                  address: candidate  # <-- Pointed from 'baseline' to 'candidate' for hot-swap
+                  port_value: 8000
+- "@type": type.googleapis.com/envoy.config.cluster.v3.Cluster
+  name: mlops-engine-shadow-service
+  connect_timeout: 0.25s
+  type: STRICT_DNS
+  lb_policy: ROUND_ROBIN
+  load_assignment:
+    cluster_name: mlops-engine-shadow-service
+    endpoints:
+      - lb_endpoints:
+          - endpoint:
+              address:
+                socket_address:
+                  address: candidate
+                  port_value: 8000

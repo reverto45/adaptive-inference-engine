@@ -1,0 +1,14 @@
+node:
+  id: mlops-engine-gateway
+  cluster: production_inference_cluster
+dynamic_resources:
+  lds_config:
+    path: /etc/envoy/lds.yaml
+  cds_config:
+    path: /etc/envoy/cds.yaml
+admin:
+  access_log_path: /tmp/admin_access.log
+  address:
+    socket_address:
+      address: 0.0.0.0 # Make admin accessible on host for debugging
+      port_value: 9901

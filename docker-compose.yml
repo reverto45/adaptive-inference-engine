@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7.0-alpine
+    container_name: mlops-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  envoy:
+    image: envoyproxy/envoy:v1.30.1
+    container_name: mlops-envoy
+    ports:
+      - "8080:8080" # Inference gateway
+      - "9901:9901" # Envoy Admin interface
+    volumes:
+      - ./envoy-config:/etc/envoy:ro
+    depends_on:
+      - baseline
+      - candidate
+    restart: unless-stopped
+
+  baseline:
+    build:
+      context: ./inference
+      dockerfile: Dockerfile
+    container_name: mlops-baseline
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - MODEL_ROLE=baseline
+    volumes:
+      - ./shared-models:/app/models
+    ports:
+      - "8001:8000"
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  candidate:
+    build:
+      context: ./inference
+      dockerfile: Dockerfile
+    container_name: mlops-candidate
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - MODEL_ROLE=candidate
+    volumes:
+      - ./shared-models:/app/models
+    ports:
+      - "8002:8000"
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: mlops-worker
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CHECK_INTERVAL=2.0 # Check frequently for testing
+      - ENVOY_CONF_DIR=/etc/envoy
+    volumes:
+      - ./envoy-config:/etc/envoy
+      - ./shared-models:/app/models
+    ports:
+      - "9090:9090" # Prometheus metrics endpoint
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: mlops-prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9091:9090"
+    depends_on:
+      - worker
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: mlops-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+    depends_on:
+      - prometheus
+    restart: unless-stopped

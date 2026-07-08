@@ -1,0 +1,15 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY worker/requirements.txt worker_requirements.txt
+
+RUN pip install --default-timeout=1000 --no-cache-dir -r worker_requirements.txt
+
+COPY worker/ /app/worker/
+
+ENV PYTHONPATH=/app
+
+EXPOSE 9090
+
+CMD ["python", "worker/app.py"]
