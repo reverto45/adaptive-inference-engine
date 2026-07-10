@@ -2,8 +2,10 @@ import os
 import json
 import time
 import logging
+import asyncio
 from typing import Dict, Any
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import redis
 import torch
@@ -15,6 +17,9 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Fraud Detection Inference Service")
+
+# Global state for model readiness warming
+is_warmed_up = False
 
 # Redis configuration
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
@@ -83,6 +88,34 @@ def load_model():
 # Initial load
 load_model()
 
+async def warm_up_model():
+    """
+    Asynchronous background warming routine.
+    Passes 50 dummy tensors of shape (1, 5) through the forward pass.
+    Sets is_warmed_up to True when complete.
+    """
+    global is_warmed_up
+    logger.info("Starting model warming routine...")
+    try:
+        # Simulate PyTorch CUDA/RAM allocations & cache warm up
+        for i in range(50):
+            # Create a dummy tensor of shape (1, 5)
+            dummy_input = torch.randn(1, 5).to(DEVICE)
+            with torch.no_grad():
+                _ = model(dummy_input)
+            # Yield control to the event loop so this remains fully asynchronous
+            await asyncio.sleep(0.01)
+
+        is_warmed_up = True
+        logger.info("Model warming routine complete. 50 dummy tensors processed.")
+    except Exception as e:
+        logger.error(f"Error during model warming routine: {e}")
+
+@app.on_event("startup")
+async def startup_event():
+    # Start warming as an asynchronous background task
+    asyncio.create_task(warm_up_model())
+
 # Last reload check time to periodically look for new models (every 5 seconds)
 last_reload_time = time.time()
 
@@ -102,6 +135,19 @@ class PredictionResponse(BaseModel):
 @app.get("/health")
 def health():
     return {"status": "healthy", "role": MODEL_ROLE}
+
+@app.get("/healthz/ready")
+def readiness_check():
+    """
+    Readiness health check endpoint.
+    Returns HTTP 503 if the warming routine is executing, or HTTP 200 once complete.
+    """
+    if not is_warmed_up:
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"status": "warming", "message": "Model warming routine is actively executing"}
+        )
+    return {"status": "ready", "role": MODEL_ROLE}
 
 @app.post("/predict", response_model=PredictionResponse)
 def predict(request: TransactionRequest):

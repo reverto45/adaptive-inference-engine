@@ -66,10 +66,10 @@ spec:
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /health
+              path: /healthz/ready
               port: {{ .Values.service.baseline.port }}
-            initialDelaySeconds: 2
-            periodSeconds: 5
+            initialDelaySeconds: 5
+            periodSeconds: 2
             timeoutSeconds: 2
             failureThreshold: 3
           securityContext:
